@@ -1,5 +1,5 @@
-scalaVersion in ThisBuild := "2.12.8"
-crossScalaVersions in ThisBuild := Seq("2.11.12", scalaVersion.value)
+scalaVersion in ThisBuild := "2.13.0"
+crossScalaVersions in ThisBuild := Seq("2.11.12", "2.12.8", scalaVersion.value)
 
 val catsVersion = "2.0.0-M4"
 val catsEffectVersion = "1.3.1"
@@ -36,8 +36,12 @@ lazy val std2xOptions = Seq(
   "-Ywarn-value-discard"
 )
 
-def extraOptions(scalaVersion: String) =
+def extraOptions(scalaVersion: String): Seq[String] =
   CrossVersion.partialVersion(scalaVersion) match {
+    case Some((2, 13)) =>
+      Seq(
+        "-Ymacro-annotations"
+      )
     case Some((2, 12)) =>
       Seq(
         "-opt-warnings",
@@ -55,12 +59,17 @@ def extraOptions(scalaVersion: String) =
     case _ => Seq.empty
   }
 
-val commonSettings = Seq(
+def macrosParadiseSettings(scalaVersion: String) =
+  CrossVersion.partialVersion(scalaVersion) match {
+    case Some((2, n)) if n >= 13 => Seq()
+    case _                       => Seq(compilerPlugin("org.scalamacros" % "paradise" % "2.1.1" cross CrossVersion.full))
+  }
+
+lazy val commonSettings = Seq(
   javacOptions ++= Seq("-source", "1.8", "-target", "1.8", "-Xlint"),
   scalacOptions := stdOptions ++ extraOptions(scalaVersion.value),
   // for simulacrum
-  addCompilerPlugin("org.scalamacros" % "paradise"        % "2.1.1" cross CrossVersion.full),
-  addCompilerPlugin("org.spire-math"  %% "kind-projector" % "0.9.10"),
+  addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.10"),
   // sbt-doctest leaves some unused values
   // see https://github.com/scala/bug/issues/10270
   scalacOptions in Test := {
@@ -75,7 +84,8 @@ val commonSettings = Seq(
   apiURL := Some(url("http://www.scanamo.org/latest/api/")),
   dynamoDBLocalDownloadDir := file(".dynamodb-local"),
   dynamoDBLocalPort := 8042,
-  Test / parallelExecution := false
+  Test / parallelExecution := false,
+  libraryDependencies ++= macrosParadiseSettings(scalaVersion.value)
 )
 
 lazy val root = (project in file("."))
